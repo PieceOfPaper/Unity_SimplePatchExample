@@ -151,6 +151,7 @@ public class PatchManager : MonoBehaviour
 
     private string m_DataPath;
     private string m_PersistentDataPath;
+    private string m_Platform;
     private PatchDataList m_PatchList;
     private PatchDataList m_PatchedList;
 
@@ -181,6 +182,12 @@ public class PatchManager : MonoBehaviour
     {
         m_DataPath = Application.dataPath;
         m_PersistentDataPath = Application.persistentDataPath;
+
+#if UNITY_EDITOR
+        m_Platform = UnityEditor.EditorUserBuildSettings.activeBuildTarget.ToString();
+#else
+        m_Platform = Application.platform.ToString();
+#endif
     }
 
     public IEnumerator DownloadPatchListRoutine()
@@ -192,12 +199,8 @@ public class PatchManager : MonoBehaviour
         m_DownloadCountMax = 1;
 
         m_PatchList = null;
-        var platform = Application.platform.ToString();
-#if UNITY_EDITOR
-        platform = UnityEditor.EditorUserBuildSettings.activeBuildTarget.ToString();
-#endif
 
-        var uri = $"{PATCH_BASE_URI}/{platform}/{PATCH_LIST_FILENAME}";
+        var uri = $"{PATCH_BASE_URI}/{m_Platform}/{PATCH_LIST_FILENAME}";
         using (var request = UnityEngine.Networking.UnityWebRequest.Get(uri))
         {
             request.SendWebRequest();
@@ -250,15 +253,12 @@ public class PatchManager : MonoBehaviour
         for (int i = 0; i < willPatchDataList.Count; i++)
         {
             var patchData = willPatchDataList[i];
-            var platform = Application.platform.ToString();
-#if UNITY_EDITOR
-            platform = UnityEditor.EditorUserBuildSettings.activeBuildTarget.ToString();
-#endif
 
-            var uri = $"{PATCH_BASE_URI}/{platform}/{patchData.fileName}";
+            var uri = $"{PATCH_BASE_URI}/{m_Platform}/{patchData.fileName}";
+            var savePath = System.IO.Path.Combine(m_PersistentDataPath, SAVE_PATCH_PATH, patchData.fileName);
             using (var request = UnityEngine.Networking.UnityWebRequest.Get(uri))
             {
-                request.downloadHandler = new UnityEngine.Networking.DownloadHandlerFile(System.IO.Path.Combine(m_PersistentDataPath, SAVE_PATCH_PATH, patchData.fileName));
+                request.downloadHandler = new UnityEngine.Networking.DownloadHandlerFile(savePath);
                 request.SendWebRequest();
                 while (request.isDone == false)
                 {
@@ -304,5 +304,117 @@ public class PatchManager : MonoBehaviour
 
         //최종 저장
         System.IO.File.WriteAllText(pathedListPath, JsonUtility.ToJson(m_PatchedList, false));
+    }
+
+    public System.Threading.Thread DownloadPatchFilesThread()
+    {
+        var thread = new System.Threading.Thread(() =>
+        {
+            var pathedListPath = System.IO.Path.Combine(m_PersistentDataPath, SAVE_PATCH_PATH, PATCHED_LIST_FILENAME);
+            string jsonText = System.IO.File.Exists(pathedListPath) ? System.IO.File.ReadAllText(pathedListPath) : null;
+            m_PatchedList = string.IsNullOrEmpty(jsonText) ? null : JsonUtility.FromJson<PatchDataList>(jsonText);
+            if (m_PatchedList == null) m_PatchedList = new PatchDataList();
+
+            List<PatchData> willPatchDataList = new List<PatchData>();
+            if (m_PatchList != null)
+            {
+                foreach (var patchData in m_PatchList.dataList)
+                {
+                    var pathedData = m_PatchedList.dataList.Find(m => m.fileName == patchData.fileName);
+                    if (pathedData == null || pathedData.version != patchData.version)
+                    {
+                        willPatchDataList.Add(patchData);
+                    }
+                }
+            }
+
+            m_CurrentPatchStep = PatchStep.DownloadPatchFiles;
+            m_DownloadProgress = 0.0f;
+            m_FullProgress = 0.0f;
+            m_DownloadCount = 0;
+            m_DownloadCountMax = willPatchDataList.Count;
+
+            var saveStartTimeTick = System.DateTime.Now.Ticks;
+            for (int i = 0; i < willPatchDataList.Count; i++)
+            {
+                var patchData = willPatchDataList[i];
+
+                var uri = $"{PATCH_BASE_URI}/{m_Platform}/{patchData.fileName}";
+                var savePath = System.IO.Path.Combine(m_PersistentDataPath, SAVE_PATCH_PATH, patchData.fileName);
+                CreateDirectoryByFilePath(System.IO.Path.Combine(m_PersistentDataPath, SAVE_PATCH_PATH), patchData.fileName);
+
+                if (System.IO.File.Exists(savePath))
+                    System.IO.File.Delete(savePath);
+
+                using (var webClient = new System.Net.WebClient())
+                {
+                    var ur = new System.Uri(uri);
+                    webClient.DownloadProgressChanged += (object sender, System.Net.DownloadProgressChangedEventArgs e) => {
+                        m_DownloadProgress = e.ProgressPercentage;
+                        m_FullProgress = ((float)m_DownloadCount / m_DownloadCountMax) + (m_DownloadProgress / m_DownloadCountMax);
+                    };
+
+                    bool isCompleted = false;
+                    webClient.DownloadFileCompleted += (object sender, System.ComponentModel.AsyncCompletedEventArgs e) => {
+                        isCompleted = true;
+                    };
+                    
+                    webClient.DownloadFileAsync(ur, savePath);
+                    while(isCompleted == false) System.Threading.Thread.Sleep(100);
+
+                    var fileExist = System.IO.File.Exists(savePath);
+                    if (fileExist == false)
+                    {
+                        //TODO - 로그를 따로 뺀다.
+                        // Debug.LogError($"[PatchManager] DownloadPatchFiles Error - {request.error}");
+                    }
+                    else
+                    {
+                        var pathedData = m_PatchedList.dataList.Find(m => m.fileName == patchData.fileName);
+                        if (pathedData == null)
+                        {
+                            pathedData = new PatchData(patchData);
+                            m_PatchedList.dataList.Add(pathedData);
+                        }
+                        else
+                        {
+                            pathedData.UpdateData(pathedData);
+                        }
+                    }
+                }
+
+                //파일 용량이 작은 파일을 연속해서 받는경우, 패치리스트 파일을 갱신하는데 더 많은 비용이 소모되므로 일정 주기별로 갱신하도록 한다.
+                if ((saveStartTimeTick - System.DateTime.Now.Ticks) > SAVE_PATCH_LIST_TIME * System.TimeSpan.TicksPerSecond)
+                {
+                    System.IO.File.WriteAllText(pathedListPath, JsonUtility.ToJson(m_PatchedList, false));
+                    saveStartTimeTick = System.DateTime.Now.Ticks;
+                }
+
+                m_DownloadCount = i + 1;
+                m_DownloadProgress = 1.0f;
+                m_FullProgress = ((float)m_DownloadCount / m_DownloadCountMax);
+            }
+
+            m_DownloadProgress = 1.0f;
+            m_FullProgress = 1.0f;
+            m_DownloadCount = m_DownloadCountMax;
+
+            //최종 저장
+            System.IO.File.WriteAllText(pathedListPath, JsonUtility.ToJson(m_PatchedList, false));
+
+        });
+        return thread;
+    }
+
+    private void CreateDirectoryByFilePath(string basePath, string filePath)
+    {
+        var currentPath = basePath;
+        var splited = filePath.Replace('\\', '/').Split('/');
+        for (int i = 0; i < splited.Length - 1; i ++)
+        {
+            currentPath += '/' + splited[i];
+            if (System.IO.Directory.Exists(currentPath) == false)
+                System.IO.Directory.CreateDirectory(currentPath);
+        }
     }
 }

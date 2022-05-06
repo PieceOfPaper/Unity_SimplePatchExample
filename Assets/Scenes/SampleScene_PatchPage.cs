@@ -13,7 +13,9 @@ public class SampleScene_PatchPage : MonoBehaviour
     IEnumerator Start()
     {
         yield return StartCoroutine(PatchManager.Instance.DownloadPatchListRoutine());
-        yield return StartCoroutine(PatchManager.Instance.DownloadPatchFilesRoutine());
+        // yield return StartCoroutine(PatchManager.Instance.DownloadPatchFilesRoutine());
+        var thread = PatchManager.Instance.DownloadPatchFilesThread();
+        thread.Start();
     }
 
     void LateUpdate()
