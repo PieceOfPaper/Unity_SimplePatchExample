@@ -92,6 +92,7 @@ public class PatchManager : MonoBehaviour
                 var newData = new PatchData();
                 newData.fileName = assetBundleName;
                 newData.version = 1;
+                newData.fileSize = fileSize;
                 newData.hash = fileHashStr;
                 patchDataList.dataList.Add(newData);
             }
@@ -101,6 +102,7 @@ public class PatchManager : MonoBehaviour
                 if (defaultData.hash != fileHashStr)
                 {
                     defaultData.version++;
+                    defaultData.fileSize = fileSize;
                     defaultData.hash = fileHashStr;
                 }
             }
