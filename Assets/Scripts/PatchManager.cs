@@ -60,7 +60,7 @@ public class PatchManager
             if (fileInfo == null) continue;
 
             var fileHash = System.Security.Cryptography.MD5.Create().ComputeHash(fileInfo.OpenRead());
-            var fileHashStr = System.Text.Encoding.Default.GetString(fileHash);
+            var fileHashStr = System.BitConverter.ToString(fileHash).Replace("-", "").ToLowerInvariant();
 
             var defaultData = patchDataList.dataList.Find(m => m.fileName == assetBundleName);
             if (defaultData == null)
@@ -69,6 +69,7 @@ public class PatchManager
                 newData.fileName = assetBundleName;
                 newData.version = 1;
                 newData.hash = fileHashStr;
+                patchDataList.dataList.Add(newData);
             }
             else
             {
@@ -93,7 +94,7 @@ public class PatchManager
         }
 
         //패치 리스트 저장
-        System.IO.File.WriteAllText(patchDataListPath, JsonUtility.ToJson(patchDataList, false));
+        System.IO.File.WriteAllText(patchDataListPath, JsonUtility.ToJson(patchDataList, true));
     }
 
     #endif

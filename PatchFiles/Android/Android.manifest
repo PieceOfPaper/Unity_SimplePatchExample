@@ -1,0 +1,16 @@
+ManifestFileVersion: 0
+CRC: 3398506035
+AssetBundleManifest:
+  AssetBundleInfos:
+    Info_0:
+      Name: prefabs/robot kyle
+      Dependencies: {}
+    Info_1:
+      Name: prefabs/boxunitychan
+      Dependencies: {}
+    Info_2:
+      Name: prefabs/unitychan
+      Dependencies: {}
+    Info_3:
+      Name: prefabs/asobi_chan_b
+      Dependencies: {}
