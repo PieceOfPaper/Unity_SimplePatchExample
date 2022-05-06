@@ -48,6 +48,7 @@ public class PatchManager : MonoBehaviour
     const string PATCHED_LIST_FILENAME = "PatchedList.json";
     const string PATCH_BASE_URI = "https://raw.githubusercontent.com/PieceOfPaper/Unity_SimplePatchExample/main/PatchFiles";
     const float SAVE_PATCH_LIST_TIME = 1.0f;
+    const string SAVE_PATCH_PATH = "PatchFiles";
 
     #endregion
 
@@ -118,14 +119,6 @@ public class PatchManager : MonoBehaviour
 
         //패치 리스트 저장
         System.IO.File.WriteAllText(patchDataListPath, JsonUtility.ToJson(patchDataList, true));
-    }
-
-
-    [UnityEditor.MenuItem("Patch Manager/Delete Patched List")]
-    static void DeletePatchedList()
-    {
-        var path = System.IO.Path.Combine(Application.persistentDataPath, PATCHED_LIST_FILENAME);
-        if (System.IO.File.Exists(path)) System.IO.File.Delete(path);
     }
 
 
@@ -229,7 +222,7 @@ public class PatchManager : MonoBehaviour
 
     public IEnumerator DownloadPatchFilesRoutine()
     {
-        var pathedListPath = System.IO.Path.Combine(m_PersistentDataPath, PATCHED_LIST_FILENAME);
+        var pathedListPath = System.IO.Path.Combine(m_PersistentDataPath, SAVE_PATCH_PATH, PATCHED_LIST_FILENAME);
         string jsonText = System.IO.File.Exists(pathedListPath) ? System.IO.File.ReadAllText(pathedListPath) : null;
         m_PatchedList = string.IsNullOrEmpty(jsonText) ? null : JsonUtility.FromJson<PatchDataList>(jsonText);
         if (m_PatchedList == null) m_PatchedList = new PatchDataList();
@@ -265,7 +258,7 @@ public class PatchManager : MonoBehaviour
             var uri = $"{PATCH_BASE_URI}/{platform}/{patchData.fileName}";
             using (var request = UnityEngine.Networking.UnityWebRequest.Get(uri))
             {
-                request.downloadHandler = new UnityEngine.Networking.DownloadHandlerFile(System.IO.Path.Combine(m_PersistentDataPath, patchData.fileName));
+                request.downloadHandler = new UnityEngine.Networking.DownloadHandlerFile(System.IO.Path.Combine(m_PersistentDataPath, SAVE_PATCH_PATH, patchData.fileName));
                 request.SendWebRequest();
                 while (request.isDone == false)
                 {
