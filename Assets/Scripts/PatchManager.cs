@@ -364,7 +364,7 @@ public class PatchManager : MonoBehaviour
                 {
                     var ur = new System.Uri(uri);
                     webClient.DownloadProgressChanged += (object sender, System.Net.DownloadProgressChangedEventArgs e) => {
-                        m_DownloadProgress = e.ProgressPercentage;
+                        m_DownloadProgress = e.ProgressPercentage * 0.01f;
                         m_FullProgress = ((float)m_DownloadCount / m_DownloadCountMax) + (m_DownloadProgress / m_DownloadCountMax);
                     };
 
