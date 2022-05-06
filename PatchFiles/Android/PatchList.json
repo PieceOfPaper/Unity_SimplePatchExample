@@ -3,26 +3,26 @@
         {
             "fileName": "prefabs/asobi_chan_b",
             "fileSize": 1436864,
-            "version": 1,
-            "hash": "fa7440522e013b02027a705bf6f07805"
+            "version": 2,
+            "hash": "92525844e5359a26a14785ee41861928"
         },
         {
             "fileName": "prefabs/boxunitychan",
             "fileSize": 30435,
-            "version": 1,
-            "hash": "29f5ac57b42a2f3c1b0fe4797cb48222"
+            "version": 2,
+            "hash": "7f32d5801f37131b2d944937f62b021f"
         },
         {
             "fileName": "prefabs/robot kyle",
             "fileSize": 1021076,
-            "version": 1,
-            "hash": "ce07e97c222ea6af98e5aecf12569221"
+            "version": 2,
+            "hash": "96c8b06528a55c587af9c596abc63b74"
         },
         {
             "fileName": "prefabs/unitychan",
             "fileSize": 3447162,
-            "version": 1,
-            "hash": "7f5dad1bfbd735a4a70f6ddf3ef21b55"
+            "version": 2,
+            "hash": "fe1ff2d60488790a394ed0644a38d3f2"
         }
     ]
 }

@@ -64,16 +64,17 @@ public class PatchManager : MonoBehaviour
         var patchFolderPath = $"PatchFiles/{UnityEditor.EditorUserBuildSettings.activeBuildTarget}";
         if (System.IO.Directory.Exists(System.IO.Path.Combine(rootPath, patchFolderPath)) == false)
             System.IO.Directory.CreateDirectory(System.IO.Path.Combine(rootPath, patchFolderPath));
-        UnityEditor.BuildPipeline.BuildAssetBundles(patchFolderPath, UnityEditor.BuildAssetBundleOptions.None, UnityEditor.EditorUserBuildSettings.activeBuildTarget);
+        var manifest = UnityEditor.BuildPipeline.BuildAssetBundles(patchFolderPath, UnityEditor.BuildAssetBundleOptions.None, UnityEditor.EditorUserBuildSettings.activeBuildTarget);
 
-        //패치리스트 갱신
         var patchDataListPath = System.IO.Path.Combine(rootPath, patchFolderPath, PATCH_LIST_FILENAME);
+        
+        //이전 패치리스트 로드
         string jsonText = System.IO.File.Exists(patchDataListPath) ? System.IO.File.ReadAllText(patchDataListPath) : null;
         var patchDataList = string.IsNullOrEmpty(jsonText) ? null : JsonUtility.FromJson<PatchDataList>(jsonText);
         if (patchDataList == null) patchDataList = new PatchDataList();
 
         List<string> pathedFileNameList = new List<string>();
-        var assetBundleNames = UnityEditor.AssetDatabase.GetAllAssetBundleNames();
+        var assetBundleNames = manifest.GetAllAssetBundles();
         foreach (var assetBundleName in assetBundleNames)
         {
             var filePath = System.IO.Path.Combine(rootPath, patchFolderPath, assetBundleName);
@@ -83,8 +84,8 @@ public class PatchManager : MonoBehaviour
             if (fileInfo == null) continue;
 
             var fileSize = fileInfo.Length;
-            var fileHash = System.Security.Cryptography.MD5.Create().ComputeHash(fileInfo.OpenRead());
-            var fileHashStr = System.BitConverter.ToString(fileHash).Replace("-", "").ToLowerInvariant();
+            var fileHash = manifest.GetAssetBundleHash(assetBundleName);
+            var fileHashStr = fileHash.ToString();
 
             var defaultData = patchDataList.dataList.Find(m => m.fileName == assetBundleName);
             if (defaultData == null)
