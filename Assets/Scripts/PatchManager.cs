@@ -46,7 +46,7 @@ public class PatchManager : MonoBehaviour
 
     const string PATCH_LIST_FILENAME = "PatchList.json";
     const string PATCHED_LIST_FILENAME = "PatchedList.json";
-    const string PATCH_BASE_URI = "https://github.com/PieceOfPaper/Unity_SimplePatchExample/tree/main/PatchFiles";
+    const string PATCH_BASE_URI = "https://raw.githubusercontent.com/PieceOfPaper/Unity_SimplePatchExample/main/PatchFiles";
     const float SAVE_PATCH_LIST_TIME = 1.0f;
 
     #endregion
@@ -128,6 +128,13 @@ public class PatchManager : MonoBehaviour
         if (System.IO.File.Exists(path)) System.IO.File.Delete(path);
     }
 
+
+    [UnityEditor.MenuItem("Patch Manager/Open Persistent Folder")]
+    static void OpenPersistentFolder()
+    {
+        UnityEditor.EditorUtility.RevealInFinder(Application.persistentDataPath);
+    }
+
 #endif
     #endregion
 
@@ -174,12 +181,6 @@ public class PatchManager : MonoBehaviour
 
     private void Awake()
     {
-        if (m_Instance != this)
-        {
-            Destroy(this);
-            return;
-        }
-
         DontDestroyOnLoad(gameObject);
     }
 
@@ -198,10 +199,14 @@ public class PatchManager : MonoBehaviour
         m_DownloadCountMax = 1;
 
         m_PatchList = null;
-        var uri = $"{PATCH_BASE_URI}/{Application.platform}/{PATCH_LIST_FILENAME}";
+        var platform = Application.platform.ToString();
+#if UNITY_EDITOR
+        platform = UnityEditor.EditorUserBuildSettings.activeBuildTarget.ToString();
+#endif
+
+        var uri = $"{PATCH_BASE_URI}/{platform}/{PATCH_LIST_FILENAME}";
         using (var request = UnityEngine.Networking.UnityWebRequest.Get(uri))
         {
-            Debug.Log(uri);
             request.SendWebRequest();
             while (request.isDone == false)
             {
@@ -242,6 +247,7 @@ public class PatchManager : MonoBehaviour
             }
         }
 
+        m_CurrentPatchStep = PatchStep.DownloadPatchFiles;
         m_DownloadProgress = 0.0f;
         m_FullProgress = 0.0f;
         m_DownloadCount = 0;
@@ -251,10 +257,14 @@ public class PatchManager : MonoBehaviour
         for (int i = 0; i < willPatchDataList.Count; i++)
         {
             var patchData = willPatchDataList[i];
-            var uri = $"{PATCH_BASE_URI}/{Application.platform}/{patchData.fileName}";
+            var platform = Application.platform.ToString();
+#if UNITY_EDITOR
+            platform = UnityEditor.EditorUserBuildSettings.activeBuildTarget.ToString();
+#endif
+
+            var uri = $"{PATCH_BASE_URI}/{platform}/{patchData.fileName}";
             using (var request = UnityEngine.Networking.UnityWebRequest.Get(uri))
             {
-                Debug.Log(uri);
                 request.downloadHandler = new UnityEngine.Networking.DownloadHandlerFile(System.IO.Path.Combine(m_PersistentDataPath, patchData.fileName));
                 request.SendWebRequest();
                 while (request.isDone == false)
