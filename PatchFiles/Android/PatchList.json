@@ -2,21 +2,25 @@
     "dataList": [
         {
             "fileName": "prefabs/boxunitychan",
+            "fileSize": 0,
             "version": 4,
             "hash": "29f5ac57b42a2f3c1b0fe4797cb48222"
         },
         {
             "fileName": "prefabs/robot kyle",
+            "fileSize": 0,
             "version": 4,
             "hash": "ce07e97c222ea6af98e5aecf12569221"
         },
         {
             "fileName": "prefabs/unitychan",
+            "fileSize": 0,
             "version": 4,
             "hash": "7f5dad1bfbd735a4a70f6ddf3ef21b55"
         },
         {
             "fileName": "prefabs/asobi_chan_b",
+            "fileSize": 0,
             "version": 1,
             "hash": "fa7440522e013b02027a705bf6f07805"
         }
