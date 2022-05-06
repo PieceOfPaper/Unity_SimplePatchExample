@@ -542,6 +542,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f0233cff71d01491cba9767758c67bf1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_Type: 1
   m_TextPatchStep: {fileID: 18440045}
   m_SliderDownloadProgress: {fileID: 61552928}
   m_SliderFullProgress: {fileID: 1732087038}

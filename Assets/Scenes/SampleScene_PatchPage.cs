@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class SampleScene_PatchPage : MonoBehaviour
 {
+    [SerializeField] int m_Type = 1;
     [SerializeField] TMPro.TextMeshProUGUI m_TextPatchStep;
     [SerializeField] UnityEngine.UI.Slider m_SliderDownloadProgress;
     [SerializeField] UnityEngine.UI.Slider m_SliderFullProgress;
@@ -13,9 +14,25 @@ public class SampleScene_PatchPage : MonoBehaviour
     IEnumerator Start()
     {
         yield return StartCoroutine(PatchManager.Instance.DownloadPatchListRoutine());
-        // yield return StartCoroutine(PatchManager.Instance.DownloadPatchFilesRoutine());
-        var thread = PatchManager.Instance.DownloadPatchFilesThread();
-        thread.Start();
+
+        switch(m_Type)
+        {
+            case 1:
+                {
+                    yield return StartCoroutine(PatchManager.Instance.DownloadPatchFilesRoutine());
+                }
+                break;
+            case 2:
+                {
+                    var thread = PatchManager.Instance.DownloadPatchFilesThread();
+                    thread.Start();
+                    yield return null;
+                    while(PatchManager.Instance.DownloadCount < PatchManager.Instance.DownloadCountMax) yield return null;
+                    thread.Abort();
+                }
+                break;
+        }
+        Debug.Log("다운로드까지 걸린 시간: " + PatchManager.Instance.DownloadPatchFilesTimeSpan);
     }
 
     void LateUpdate()

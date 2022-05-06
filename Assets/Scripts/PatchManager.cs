@@ -174,6 +174,10 @@ public class PatchManager : MonoBehaviour
     public int DownloadCountMax => m_DownloadCountMax;
 
 
+    private System.DateTime m_DownloadPatchFilesStartDateTime;
+    private System.DateTime m_DownloadPatchFilesEndDateTime;
+    public System.TimeSpan DownloadPatchFilesTimeSpan => m_DownloadPatchFilesEndDateTime - m_DownloadPatchFilesStartDateTime;
+
 
     private void Awake()
     {
@@ -227,6 +231,9 @@ public class PatchManager : MonoBehaviour
 
     public IEnumerator DownloadPatchFilesRoutine()
     {
+        m_DownloadPatchFilesStartDateTime = System.DateTime.Now;
+        m_DownloadPatchFilesEndDateTime = m_DownloadPatchFilesStartDateTime;
+
         var pathedListPath = System.IO.Path.Combine(m_PersistentDataPath, SAVE_PATCH_PATH, PATCHED_LIST_FILENAME);
         string jsonText = System.IO.File.Exists(pathedListPath) ? System.IO.File.ReadAllText(pathedListPath) : null;
         m_PatchedList = string.IsNullOrEmpty(jsonText) ? null : JsonUtility.FromJson<PatchDataList>(jsonText);
@@ -306,12 +313,17 @@ public class PatchManager : MonoBehaviour
 
         //최종 저장
         System.IO.File.WriteAllText(pathedListPath, JsonUtility.ToJson(m_PatchedList, false));
+
+        m_DownloadPatchFilesEndDateTime = System.DateTime.Now;
     }
 
     public System.Threading.Thread DownloadPatchFilesThread()
     {
         var thread = new System.Threading.Thread(() =>
         {
+            m_DownloadPatchFilesStartDateTime = System.DateTime.Now;
+            m_DownloadPatchFilesEndDateTime = m_DownloadPatchFilesStartDateTime;
+            
             var pathedListPath = System.IO.Path.Combine(m_PersistentDataPath, SAVE_PATCH_PATH, PATCHED_LIST_FILENAME);
             string jsonText = System.IO.File.Exists(pathedListPath) ? System.IO.File.ReadAllText(pathedListPath) : null;
             m_PatchedList = string.IsNullOrEmpty(jsonText) ? null : JsonUtility.FromJson<PatchDataList>(jsonText);
@@ -404,6 +416,7 @@ public class PatchManager : MonoBehaviour
             //최종 저장
             System.IO.File.WriteAllText(pathedListPath, JsonUtility.ToJson(m_PatchedList, false));
 
+            m_DownloadPatchFilesEndDateTime = System.DateTime.Now;
         });
         return thread;
     }
