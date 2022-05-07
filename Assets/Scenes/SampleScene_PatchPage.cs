@@ -41,8 +41,9 @@ public class SampleScene_PatchPage : MonoBehaviour
         else
         {
             float fileSize = 0.0f;
+            float B2MB = 1f / (1024f * 1024f);
             foreach (var data in needPatchDatas)
-                fileSize += data.fileSize / (1024f * 1024f);
+                fileSize += data.fileSize * B2MB;
 
             if (m_ObjPopup != null) m_ObjPopup.SetActive(true);
             if (m_TextPopup != null) m_TextPopup.text = $"Download Popup\nFile Count: {needPatchDatas.Count()}\nFile Size: {fileSize.ToString("f2")}MB";
