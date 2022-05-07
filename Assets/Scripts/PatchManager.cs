@@ -210,6 +210,7 @@ public class PatchManager : MonoBehaviour
         var uri = $"{PATCH_BASE_URI}/{m_Platform}/{PATCH_LIST_FILENAME}";
         using (var request = UnityEngine.Networking.UnityWebRequest.Get(uri))
         {
+            request.SetRequestHeader("Cache-Control", "max-age=0, no-cache, no-store");
             request.SendWebRequest();
             while (request.isDone == false)
             {
@@ -280,6 +281,7 @@ public class PatchManager : MonoBehaviour
             var savePath = System.IO.Path.Combine(m_PersistentDataPath, SAVE_PATCH_PATH, patchData.fileName);
             using (var request = UnityEngine.Networking.UnityWebRequest.Get(uri))
             {
+                request.SetRequestHeader("Cache-Control", "max-age=0, no-cache, no-store");
                 request.downloadHandler = new UnityEngine.Networking.DownloadHandlerFile(savePath);
                 request.SendWebRequest();
                 while (request.isDone == false)
@@ -376,6 +378,7 @@ public class PatchManager : MonoBehaviour
                         isCompleted = true;
                     };
                     
+                    webClient.Headers.Add("Cache-Control", "max-age=0, no-cache, no-store");
                     webClient.DownloadFileAsync(ur, savePath);
                     while(isCompleted == false) System.Threading.Thread.Sleep(100);
 
