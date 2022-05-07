@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System.Linq;
 
 public class PatchManager : MonoBehaviour
 {
@@ -67,7 +68,7 @@ public class PatchManager : MonoBehaviour
         var manifest = UnityEditor.BuildPipeline.BuildAssetBundles(patchFolderPath, UnityEditor.BuildAssetBundleOptions.None, UnityEditor.EditorUserBuildSettings.activeBuildTarget);
 
         var patchDataListPath = System.IO.Path.Combine(rootPath, patchFolderPath, PATCH_LIST_FILENAME);
-        
+
         //이전 패치리스트 로드
         string jsonText = System.IO.File.Exists(patchDataListPath) ? System.IO.File.ReadAllText(patchDataListPath) : null;
         var patchDataList = string.IsNullOrEmpty(jsonText) ? null : JsonUtility.FromJson<PatchDataList>(jsonText);
@@ -156,7 +157,6 @@ public class PatchManager : MonoBehaviour
     private string m_PersistentDataPath;
     private string m_Platform;
     private PatchDataList m_PatchList;
-    private PatchDataList m_PatchedList;
 
 
     private PatchStep m_CurrentPatchStep = PatchStep.None;
@@ -230,39 +230,51 @@ public class PatchManager : MonoBehaviour
         }
     }
 
-    public IEnumerator DownloadPatchFilesRoutine()
+    public IEnumerable<PatchData> GetNeedPatchDatas()
+    {
+        var pathedListPath = System.IO.Path.Combine(m_PersistentDataPath, SAVE_PATCH_PATH, PATCHED_LIST_FILENAME);
+        string jsonText = System.IO.File.Exists(pathedListPath) ? System.IO.File.ReadAllText(pathedListPath) : null;
+        var patchedDataList = string.IsNullOrEmpty(jsonText) ? null : JsonUtility.FromJson<PatchDataList>(jsonText);
+        if (patchedDataList == null) patchedDataList = new PatchDataList();
+
+        List<PatchData> needPatchDataList = new List<PatchData>();
+        if (m_PatchList != null)
+        {
+            foreach (var patchData in m_PatchList.dataList)
+            {
+                var pathedData = patchedDataList.dataList.Find(m => m.fileName == patchData.fileName);
+                if (pathedData == null || pathedData.version != patchData.version)
+                {
+                    needPatchDataList.Add(patchData);
+                }
+            }
+        }
+        return needPatchDataList;
+    }
+
+    public IEnumerator DownloadPatchFilesRoutine(IEnumerable<PatchData> needPatchDatas)
     {
         m_DownloadPatchFilesStartDateTime = System.DateTime.Now;
         m_DownloadPatchFilesEndDateTime = m_DownloadPatchFilesStartDateTime;
 
         var pathedListPath = System.IO.Path.Combine(m_PersistentDataPath, SAVE_PATCH_PATH, PATCHED_LIST_FILENAME);
         string jsonText = System.IO.File.Exists(pathedListPath) ? System.IO.File.ReadAllText(pathedListPath) : null;
-        m_PatchedList = string.IsNullOrEmpty(jsonText) ? null : JsonUtility.FromJson<PatchDataList>(jsonText);
-        if (m_PatchedList == null) m_PatchedList = new PatchDataList();
+        var patchedDataList = string.IsNullOrEmpty(jsonText) ? null : JsonUtility.FromJson<PatchDataList>(jsonText);
+        if (patchedDataList == null) patchedDataList = new PatchDataList();
 
-        List<PatchData> willPatchDataList = new List<PatchData>();
-        if (m_PatchList != null)
-        {
-            foreach (var patchData in m_PatchList.dataList)
-            {
-                var pathedData = m_PatchedList.dataList.Find(m => m.fileName == patchData.fileName);
-                if (pathedData == null || pathedData.version != patchData.version)
-                {
-                    willPatchDataList.Add(patchData);
-                }
-            }
-        }
+        List<PatchData> needPatchDataList = new List<PatchData>();
+        if (needPatchDatas != null) needPatchDataList.AddRange(needPatchDatas);
 
         m_CurrentPatchStep = PatchStep.DownloadPatchFiles;
         m_DownloadProgress = 0.0f;
         m_FullProgress = 0.0f;
         m_DownloadCount = 0;
-        m_DownloadCountMax = willPatchDataList.Count;
+        m_DownloadCountMax = needPatchDataList.Count;
 
         var saveStartTimeTick = System.DateTime.Now.Ticks;
-        for (int i = 0; i < willPatchDataList.Count; i++)
+        for (int i = 0; i < needPatchDataList.Count; i++)
         {
-            var patchData = willPatchDataList[i];
+            var patchData = needPatchDataList[i];
 
             var uri = $"{PATCH_BASE_URI}/{m_Platform}/{patchData.fileName}";
             var savePath = System.IO.Path.Combine(m_PersistentDataPath, SAVE_PATCH_PATH, patchData.fileName);
@@ -283,11 +295,11 @@ public class PatchManager : MonoBehaviour
                 }
                 else
                 {
-                    var pathedData = m_PatchedList.dataList.Find(m => m.fileName == patchData.fileName);
+                    var pathedData = patchedDataList.dataList.Find(m => m.fileName == patchData.fileName);
                     if (pathedData == null)
                     {
                         pathedData = new PatchData(patchData);
-                        m_PatchedList.dataList.Add(pathedData);
+                        patchedDataList.dataList.Add(pathedData);
                     }
                     else
                     {
@@ -299,7 +311,7 @@ public class PatchManager : MonoBehaviour
             //파일 용량이 작은 파일을 연속해서 받는경우, 패치리스트 파일을 갱신하는데 더 많은 비용이 소모되므로 일정 주기별로 갱신하도록 한다.
             if ((saveStartTimeTick - System.DateTime.Now.Ticks) > SAVE_PATCH_LIST_TIME * System.TimeSpan.TicksPerSecond)
             {
-                System.IO.File.WriteAllText(pathedListPath, JsonUtility.ToJson(m_PatchedList, false));
+                System.IO.File.WriteAllText(pathedListPath, JsonUtility.ToJson(patchedDataList, false));
                 saveStartTimeTick = System.DateTime.Now.Ticks;
             }
 
@@ -313,12 +325,12 @@ public class PatchManager : MonoBehaviour
         m_DownloadCount = m_DownloadCountMax;
 
         //최종 저장
-        System.IO.File.WriteAllText(pathedListPath, JsonUtility.ToJson(m_PatchedList, false));
+        System.IO.File.WriteAllText(pathedListPath, JsonUtility.ToJson(patchedDataList, false));
 
         m_DownloadPatchFilesEndDateTime = System.DateTime.Now;
     }
 
-    public System.Threading.Thread DownloadPatchFilesThread()
+    public System.Threading.Thread DownloadPatchFilesThread(IEnumerable<PatchData> needPatchDatas)
     {
         var thread = new System.Threading.Thread(() =>
         {
@@ -327,32 +339,22 @@ public class PatchManager : MonoBehaviour
             
             var pathedListPath = System.IO.Path.Combine(m_PersistentDataPath, SAVE_PATCH_PATH, PATCHED_LIST_FILENAME);
             string jsonText = System.IO.File.Exists(pathedListPath) ? System.IO.File.ReadAllText(pathedListPath) : null;
-            m_PatchedList = string.IsNullOrEmpty(jsonText) ? null : JsonUtility.FromJson<PatchDataList>(jsonText);
-            if (m_PatchedList == null) m_PatchedList = new PatchDataList();
+            var patchedDataList = string.IsNullOrEmpty(jsonText) ? null : JsonUtility.FromJson<PatchDataList>(jsonText);
+            if (patchedDataList == null) patchedDataList = new PatchDataList();
 
-            List<PatchData> willPatchDataList = new List<PatchData>();
-            if (m_PatchList != null)
-            {
-                foreach (var patchData in m_PatchList.dataList)
-                {
-                    var pathedData = m_PatchedList.dataList.Find(m => m.fileName == patchData.fileName);
-                    if (pathedData == null || pathedData.version != patchData.version)
-                    {
-                        willPatchDataList.Add(patchData);
-                    }
-                }
-            }
+            List<PatchData> needPatchDataList = new List<PatchData>();
+            if (needPatchDatas != null) needPatchDataList.AddRange(needPatchDatas);
 
             m_CurrentPatchStep = PatchStep.DownloadPatchFiles;
             m_DownloadProgress = 0.0f;
             m_FullProgress = 0.0f;
             m_DownloadCount = 0;
-            m_DownloadCountMax = willPatchDataList.Count;
+            m_DownloadCountMax = needPatchDataList.Count;
 
             var saveStartTimeTick = System.DateTime.Now.Ticks;
-            for (int i = 0; i < willPatchDataList.Count; i++)
+            for (int i = 0; i < needPatchDataList.Count; i++)
             {
-                var patchData = willPatchDataList[i];
+                var patchData = needPatchDataList[i];
 
                 var uri = $"{PATCH_BASE_URI}/{m_Platform}/{patchData.fileName}";
                 var savePath = System.IO.Path.Combine(m_PersistentDataPath, SAVE_PATCH_PATH, patchData.fileName);
@@ -385,11 +387,11 @@ public class PatchManager : MonoBehaviour
                     }
                     else
                     {
-                        var pathedData = m_PatchedList.dataList.Find(m => m.fileName == patchData.fileName);
+                        var pathedData = patchedDataList.dataList.Find(m => m.fileName == patchData.fileName);
                         if (pathedData == null)
                         {
                             pathedData = new PatchData(patchData);
-                            m_PatchedList.dataList.Add(pathedData);
+                            patchedDataList.dataList.Add(pathedData);
                         }
                         else
                         {
@@ -401,7 +403,7 @@ public class PatchManager : MonoBehaviour
                 //파일 용량이 작은 파일을 연속해서 받는경우, 패치리스트 파일을 갱신하는데 더 많은 비용이 소모되므로 일정 주기별로 갱신하도록 한다.
                 if ((saveStartTimeTick - System.DateTime.Now.Ticks) > SAVE_PATCH_LIST_TIME * System.TimeSpan.TicksPerSecond)
                 {
-                    System.IO.File.WriteAllText(pathedListPath, JsonUtility.ToJson(m_PatchedList, false));
+                    System.IO.File.WriteAllText(pathedListPath, JsonUtility.ToJson(patchedDataList, false));
                     saveStartTimeTick = System.DateTime.Now.Ticks;
                 }
 
@@ -415,7 +417,7 @@ public class PatchManager : MonoBehaviour
             m_DownloadCount = m_DownloadCountMax;
 
             //최종 저장
-            System.IO.File.WriteAllText(pathedListPath, JsonUtility.ToJson(m_PatchedList, false));
+            System.IO.File.WriteAllText(pathedListPath, JsonUtility.ToJson(patchedDataList, false));
 
             m_DownloadPatchFilesEndDateTime = System.DateTime.Now;
         });
