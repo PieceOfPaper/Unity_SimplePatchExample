@@ -385,8 +385,7 @@ public class PatchManager : MonoBehaviour
                     var fileExist = System.IO.File.Exists(savePath);
                     if (fileExist == false)
                     {
-                        //TODO - 로그를 따로 뺀다.
-                        // Debug.LogError($"[PatchManager] DownloadPatchFiles Error - {request.error}");
+                        Debug.LogError($"[PatchManager] DownloadPatchFiles Error");
                     }
                     else
                     {
