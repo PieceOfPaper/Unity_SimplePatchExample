@@ -179,6 +179,7 @@ public class PatchManager : MonoBehaviour
     private System.DateTime m_DownloadPatchFilesEndDateTime;
     public System.TimeSpan DownloadPatchFilesTimeSpan => m_DownloadPatchFilesEndDateTime - m_DownloadPatchFilesStartDateTime;
 
+    private Queue<System.Action> m_ProcessMainThreadQueue = new Queue<System.Action>();
 
     private void Awake()
     {
@@ -195,6 +196,12 @@ public class PatchManager : MonoBehaviour
 #else
         m_Platform = Application.platform.ToString();
 #endif
+    }
+
+    private void Update()
+    {
+        while(m_ProcessMainThreadQueue.Count > 0)
+            m_ProcessMainThreadQueue.Dequeue()?.Invoke();
     }
 
     public IEnumerator DownloadPatchListRoutine()
